@@ -7,10 +7,11 @@ range readings are in units of mm.
 #include <VL53L1X.h>
 #include <Adafruit_LSM6DS33.h>
 
-#define SHUTDOWN0 2
-#define SHUTDOWN1 3
-#define SHUTDOWN2 4
-#define SHUTDOWN3 5
+// Sensor 0 same side as realsense, go counterclockwise
+#define SHUTDOWN0 13
+#define SHUTDOWN1 10
+#define SHUTDOWN2 11
+#define SHUTDOWN3 12
 
 
 #define ADDR0 2
@@ -153,7 +154,7 @@ void loop()
   lsm6ds33.getEvent(&accel, &gyro, &temp);
 
   yaw += (gyro.gyro.z - bias)*((millis() - imu_time)/1000.0);
-  Serial.print(yaw);
+  Serial.print(-yaw);
   Serial.print(" ");
   imu_time = millis();
   
