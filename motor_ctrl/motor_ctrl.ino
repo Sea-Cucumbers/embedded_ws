@@ -39,7 +39,7 @@ double qpps_max = 1800;
 int qpps_max_int = 1800;
 
 double WHEEL_R = 2; // inches? TODO check this
-double ROBOT_R = 7.5; // distance from center of chassis to wheel
+double ROBOT_R = 7; // distance from center of chassis to wheel
 
 typedef struct vec3{
   double vx;
@@ -221,27 +221,27 @@ int w_to_speed_cmd(double w){
 void drive_motor(int motor_num, int cmd){
   if (motor_num == MOTOR1_1){ // w4
     if (cmd > 0)
-      roboclaw1.BackwardM1(address1, cmd);
+      roboclaw1.ForwardM1(address1, cmd);
     else
-      roboclaw1.ForwardM1(address1, -cmd);
+      roboclaw1.BackwardM1(address1, -cmd);
   }
   else if (motor_num == MOTOR1_2){ // w2
     if (cmd > 0)
-      roboclaw1.BackwardM2(address1, cmd);
+      roboclaw1.ForwardM2(address1, cmd);
     else
-      roboclaw1.ForwardM2(address1, -cmd);
+      roboclaw1.BackwardM2(address1, -cmd);
   }
-  else if (motor_num == MOTOR2_1){ // w2
+  else if (motor_num == MOTOR2_1){ // w1
     if (cmd > 0)
-      roboclaw2.BackwardM1(address2, cmd);
+      roboclaw2.ForwardM1(address2, cmd);
     else
-      roboclaw2.ForwardM1(address2, -cmd);
+      roboclaw2.BackwardM1(address2, -cmd);
   }
   else { // w3
     if (cmd > 0)
-      roboclaw2.BackwardM2(address2, cmd);
+      roboclaw2.ForwardM2(address2, cmd);
     else
-      roboclaw2.ForwardM2(address2, -cmd);
+      roboclaw2.BackwardM2(address2, -cmd);
   }
 }
 
@@ -329,12 +329,20 @@ void loop() {
   }
   if (millis()-start < 4000){
     //FB(-64);
+    vector3 spe;
+    spe.vx = 0; // inch per second
+    spe.vy = PI/16/0.0254;
+    spe.w = PI/8;
+    vector4 s_wheels;
+    v_robot_to_wheels(spe, ROBOT_R, WHEEL_R, s_wheels);
+    /*
     vector4 w_wheels;
-    w_wheels.w1 = PI/2;
+    w_wheels.w1 = 0;
     w_wheels.w2 = PI/2;
-    w_wheels.w3 = PI/2;
-    w_wheels.w4 = PI/2;
-    command_speed(w_wheels);
+    w_wheels.w3 = 0;
+    w_wheels.w4 = -PI/2;
+    */
+    command_speed(s_wheels);
     displayspeed();
   }
   
