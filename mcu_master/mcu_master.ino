@@ -59,11 +59,11 @@ typedef struct vec4{
 RoboClaw roboclaw1(&Serial3,10000);
 RoboClaw roboclaw2(&Serial2,10000);
 
-// some tof constants
-#define SHUTDOWN0 2
-#define SHUTDOWN1 3
-#define SHUTDOWN2 4
-#define SHUTDOWN3 5
+// Sensor 0 same side as realsense, go counterclockwise
+#define SHUTDOWN0 13
+#define SHUTDOWN1 10
+#define SHUTDOWN2 11
+#define SHUTDOWN3 12
 
 #define ADDR0 2
 #define ADDR1 3
@@ -80,6 +80,17 @@ float bias = 0;
 float yaw = 0;
 unsigned long imu_time = 0;
 
+vector3 spe;
+
+// Serial stuff
+const byte numChars = 32;
+char receivedChars[numChars];
+char tempChars[numChars];        // temporary array for use when parsing
+
+      // variables to hold the parsed data
+char messageFromPC[numChars] = {0};
+
+boolean newData = false;
 
 //some motor control helper functions
 
@@ -276,6 +287,9 @@ void setup() {
   roboclaw1.SetM2VelocityPID(address1,Kd_1_2,Kp_1_2,Ki_1_2,qpps_1_2);
   roboclaw2.SetM1VelocityPID(address2,Kd_2_1,Kp_2_1,Ki_2_1,qpps_2_1);
   roboclaw2.SetM2VelocityPID(address2,Kd_2_2,Kp_2_2,Ki_2_2,qpps_2_2);
+  spe.vx = 0;
+  spe.vy = 0;
+  spe.w = 0;
 
   // tof setup
   Serial.begin(9600);
@@ -299,7 +313,7 @@ void setup() {
   sensor0.setTimeout(500);
   if (!sensor0.init())
   {
-    Serial.println("Failed to detect and initialize sensor 1!");
+    Serial.println("Failed to detect and initialize sensor 0!");
     while (1);
   }
   sensor0.setAddress(ADDR0);
@@ -308,7 +322,7 @@ void setup() {
   sensor1.setTimeout(500);
   if (!sensor1.init())
   {
-    Serial.println("Failed to detect and initialize sensor 2!");
+    Serial.println("Failed to detect and initialize sensor 1!");
     while (1);
   }
   sensor1.setAddress(ADDR1);
@@ -317,7 +331,7 @@ void setup() {
   sensor2.setTimeout(500);
   if (!sensor2.init())
   {
-    Serial.println("Failed to detect and initialize sensor 3!");
+    Serial.println("Failed to detect and initialize sensor 2!");
     while (1);
   }
   sensor2.setAddress(ADDR2);
@@ -326,7 +340,7 @@ void setup() {
   sensor3.setTimeout(500);
   if (!sensor3.init())
   {
-    Serial.println("Failed to detect and initialize sensor 4!");
+    Serial.println("Failed to detect and initialize sensor 3!");
     while (1);
   }
   sensor3.setAddress(ADDR3);
@@ -394,14 +408,14 @@ void setup() {
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
+  // Send feedback to RPi
   sensors_event_t accel;
   sensors_event_t gyro;
   sensors_event_t temp;
   lsm6ds33.getEvent(&accel, &gyro, &temp);
 
   yaw += (gyro.gyro.z - bias)*((millis() - imu_time)/1000.0);
-  Serial.print(yaw);
+  Serial.print(-yaw);
   Serial.print(" ");
   imu_time = millis();
   
@@ -414,8 +428,65 @@ void loop() {
   Serial.print(sensor3.read()/10);
   Serial.println();
 
-  // receive command from computer, then put into spe
-  vector3 spe;
+  // Receive command from computer, then put into spe
+  recvWithStartEndMarkers();
+  if (newData == true) {
+      strcpy(tempChars, receivedChars);
+          // this temporary copy is necessary to protect the original data
+          //   because strtok() used in parseData() replaces the commas with \0
+      parseData();
+      newData = false;
+  }
+  
   vector4 s_wheels;
   v_robot_to_wheels(spe, ROBOT_R, WHEEL_R, s_wheels);
+  command_speed(s_wheels);
+}
+
+void recvWithStartEndMarkers() {
+    static boolean recvInProgress = false;
+    static byte ndx = 0;
+    char startMarker = '<';
+    char endMarker = '>';
+    char rc;
+
+    while (Serial.available() > 0 && newData == false) {
+        rc = Serial.read();
+
+        if (recvInProgress == true) {
+            if (rc != endMarker) {
+                receivedChars[ndx] = rc;
+                ndx++;
+                if (ndx >= numChars) {
+                    ndx = numChars - 1;
+                }
+            }
+            else {
+                receivedChars[ndx] = '\0'; // terminate the string
+                recvInProgress = false;
+                ndx = 0;
+                newData = true;
+            }
+        }
+
+        else if (rc == startMarker) {
+            recvInProgress = true;
+        }
+    }
+}
+
+//============
+
+void parseData() {      // split the data into its parts
+
+    char * strtokIndx; // this is used by strtok() as an index
+
+    strtokIndx = strtok(tempChars," ");      // get the first part - the string
+    spe.vx = atof(strtokIndx); // copy it to messageFromPC
+
+    strtokIndx = strtok(NULL, " "); // this continues where the previous call left off
+    spe.vy = atof(strtokIndx);     // convert this part to an integer
+
+    strtokIndx = strtok(NULL, " ");
+    spe.w = atof(strtokIndx);     // convert this part to a float
 }
