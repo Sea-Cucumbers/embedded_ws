@@ -33,6 +33,8 @@
 #define Kd_2_2 0.00
 #define qpps_2_2 2625
 
+#define JAMMER_PIN 2
+
 double ppr = 1425.1;
 double ppr_int = 1425;
 long start = 0;
@@ -86,6 +88,8 @@ vector3 spe;
 const byte numChars = 32;
 char receivedChars[numChars];
 char tempChars[numChars];        // temporary array for use when parsing
+
+int grip = 0;
 
       // variables to hold the parsed data
 char messageFromPC[numChars] = {0};
@@ -291,6 +295,9 @@ void setup() {
   spe.vy = 0;
   spe.w = 0;
 
+  pinMode(JAMMER_PIN, OUTPUT);
+  digitalWrite(JAMMER_PIN, 1);
+
   // tof setup
   Serial.begin(9600);
   Wire.begin();
@@ -441,6 +448,8 @@ void loop() {
   vector4 s_wheels;
   v_robot_to_wheels(spe, ROBOT_R, WHEEL_R, s_wheels);
   command_speed(s_wheels);
+
+  digitalWrite(JAMMER_PIN, !grip);
 }
 
 void recvWithStartEndMarkers() {
@@ -489,4 +498,7 @@ void parseData() {      // split the data into its parts
 
     strtokIndx = strtok(NULL, " ");
     spe.w = atof(strtokIndx);     // convert this part to a float
+
+    strtokIndx = strtok(NULL, " ");
+    grip = atoi(strtokIndx);     // convert this part to an int
 }
